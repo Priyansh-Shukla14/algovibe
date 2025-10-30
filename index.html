@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fullmetal Alchemist: Equivalent Exchange</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #f0f0f0;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .alchemy-circle {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            opacity: 0.05;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #ffd700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 1.1em;
+            margin-bottom: 30px;
+            color: #c9a86a;
+            font-style: italic;
+        }
+
+        .input-section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #ffd700;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        input {
+            flex: 1;
+            min-width: 300px;
+            padding: 15px;
+            font-size: 1.2em;
+            border: 2px solid #c9a86a;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #ffd700;
+            font-family: 'Courier New', monospace;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #ffd700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+        }
+
+        button {
+            padding: 15px 35px;
+            font-size: 1.2em;
+            background: linear-gradient(135deg, #c9a86a, #ffd700);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #1a1a2e;
+            transition: all 0.3s;
+            font-family: 'Courier New', monospace;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4);
+        }
+
+        .result-section {
+            text-align: center;
+            margin-bottom: 20px;
+            min-height: 80px;
+        }
+
+        .result-label {
+            font-size: 2em;
+            font-weight: bold;
+            padding: 15px 30px;
+            border-radius: 10px;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+
+        .equivalent {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            border: 3px solid #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .not-equivalent {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff4444;
+            border: 3px solid #ff4444;
+            text-shadow: 0 0 10px #ff4444;
+        }
+
+        .balance-meter {
+            margin: 20px auto;
+            width: 80%;
+            max-width: 600px;
+        }
+
+        .meter-label {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            color: #c9a86a;
+        }
+
+        .meter-bar {
+            width: 100%;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid #c9a86a;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .meter-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ffaa00, #00ff00);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            color: white;
+            font-weight: bold;
+        }
+
+        #visualization {
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid #c9a86a;
+            border-radius: 15px;
+            overflow: visible;
+        }
+
+        .node circle {
+            stroke-width: 3px;
+            cursor: pointer;
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+
+        .node text {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+
+        .link {
+            fill: none;
+            stroke-width: 2px;
+            opacity: 0.6;
+        }
+
+        .particle {
+            fill: #ffd700;
+            opacity: 0.8;
+        }
+
+        .section-label {
+            font-size: 1.8em;
+            fill: #ffd700;
+            font-weight: bold;
+            text-anchor: middle;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .examples {
+            text-align: center;
+            margin-top: 20px;
+            color: #c9a86a;
+            font-size: 0.9em;
+        }
+
+        .examples span {
+            cursor: pointer;
+            color: #ffd700;
+            text-decoration: underline;
+            margin: 0 10px;
+        }
+
+        .examples span:hover {
+            color: #fff;
+        }
+
+        .tree-container {
+            position: relative;
+        }
+
+        .root-node {
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <svg class="alchemy-circle" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="90" stroke="#ffd700" stroke-width="2" fill="none"/>
+        <circle cx="100" cy="100" r="70" stroke="#ffd700" stroke-width="1" fill="none"/>
+        <circle cx="100" cy="100" r="50" stroke="#ffd700" stroke-width="2" fill="none"/>
+        <line x1="10" y1="100" x2="190" y2="100" stroke="#ffd700" stroke-width="1"/>
+        <line x1="100" y1="10" x2="100" y2="190" stroke="#ffd700" stroke-width="1"/>
+        <line x1="35" y1="35" x2="165" y2="165" stroke="#ffd700" stroke-width="1"/>
+        <line x1="165" y1="35" x2="35" y2="165" stroke="#ffd700" stroke-width="1"/>
+    </svg>
+
+    <div class="container">
+        <h1>⚗️ FULLMETAL ALCHEMIST ⚗️</h1>
+        <div class="subtitle">Equivalent Exchange Formula Visualizer</div>
+
+        <div class="input-section">
+            <div class="input-group">
+                <input type="text" id="formulaInput" placeholder="Enter formula (e.g., Fe,O3 -> Fe2O3)" value="Fe,O3 -> Fe2O3">
+                <button onclick="checkFormula()">Check Formula</button>
+            </div>
+            <div class="examples">
+                Examples: 
+                <span onclick="setExample('H2,O2 -> H2O')">H2,O2 → H2O</span>
+                <span onclick="setExample('Ca,C,O3 -> CaCO3')">Ca,C,O3 → CaCO3</span>
+                <span onclick="setExample('Fe(OH)3 -> Fe,O3,H3')">Fe(OH)3 → Fe,O3,H3</span>
+                <span onclick="setExample('C6H12O6 -> C6,H12,O6')">C6H12O6 → C6,H12,O6</span>
+            </div>
+        </div>
+
+        <div class="result-section" id="resultSection"></div>
+
+        <div class="balance-meter">
+            <div class="meter-label">Exchange Balance Meter</div>
+            <div class="meter-bar">
+                <div class="meter-fill" id="meterFill" style="width: 0%">0%</div>
+            </div>
+        </div>
+
+        <svg id="visualization" width="1400" height="700"></svg>
+    </div>
+
+    <script>
+        const svg = d3.select("#visualization");
+        const width = 1400;
+        const height = 700;
+
+        function parseWithParentheses(formula) {
+            let result = {};
+            let i = 0;
+            
+            function parseSegment(str, multiplier = 1) {
+                let elements = {};
+                let j = 0;
+                
+                while (j < str.length) {
+                    if (str[j] === '(') {
+                        let depth = 1;
+                        let k = j + 1;
+                        while (k < str.length && depth > 0) {
+                            if (str[k] === '(') depth++;
+                            if (str[k] === ')') depth--;
+                            k++;
+                        }
+                        
+                        let innerFormula = str.substring(j + 1, k - 1);
+                        let numStr = '';
+                        while (k < str.length && /[0-9]/.test(str[k])) {
+                            numStr += str[k];
+                            k++;
+                        }
+                        
+                        let innerMultiplier = numStr ? parseInt(numStr) : 1;
+                        let innerElements = parseSegment(innerFormula, multiplier * innerMultiplier);
+                        
+                        for (let el in innerElements) {
+                            elements[el] = (elements[el] || 0) + innerElements[el];
+                        }
+                        
+                        j = k;
+                    } else if (/[A-Z]/.test(str[j])) {
+                        let element = str[j];
+                        j++;
+                        
+                        while (j < str.length && /[a-z]/.test(str[j])) {
+                            element += str[j];
+                            j++;
+                        }
+                        
+                        let count = '';
+                        while (j < str.length && /[0-9]/.test(str[j])) {
+                            count += str[j];
+                            j++;
+                        }
+                        
+                        const num = (count ? parseInt(count) : 1) * multiplier;
+                        elements[element] = (elements[element] || 0) + num;
+                    } else {
+                        j++;
+                    }
+                }
+                
+                return elements;
+            }
+            
+            return parseSegment(formula.replace(/,/g, ''));
+        }
+
+        function compareFormulas(input, output) {
+            const allElements = new Set([...Object.keys(input), ...Object.keys(output)]);
+            const missing = {};
+            const extra = {};
+            let balanced = true;
+            
+            for (let element of allElements) {
+                const inputCount = input[element] || 0;
+                const outputCount = output[element] || 0;
+                
+                if (inputCount !== outputCount) {
+                    balanced = false;
+                    if (inputCount < outputCount) {
+                        missing[element] = outputCount - inputCount;
+                    } else {
+                        extra[element] = inputCount - outputCount;
+                    }
+                }
+            }
+            
+            return { balanced, missing, extra, allElements };
+        }
+
+        function createHierarchicalTreeData(elements, label) {
+            return {
+                name: label,
+                children: Object.entries(elements).map(([element, count]) => ({
+                    name: element,
+                    value: count
+                }))
+            };
+        }
+
+        function calculateBalance(input, output) {
+            const allElements = new Set([...Object.keys(input), ...Object.keys(output)]);
+            let totalDiff = 0;
+            let totalCount = 0;
+            
+            for (let element of allElements) {
+                const inputCount = input[element] || 0;
+                const outputCount = output[element] || 0;
+                totalDiff += Math.abs(inputCount - outputCount);
+                totalCount += Math.max(inputCount, outputCount);
+            }
+            
+            return totalCount === 0 ? 100 : Math.max(0, 100 - (totalDiff / totalCount) * 100);
+        }
+
+        function visualizeFormula(inputElements, outputElements, comparison) {
+            svg.selectAll("*").remove();
+            
+            const inputTree = createHierarchicalTreeData(inputElements, "INPUT");
+            const outputTree = createHierarchicalTreeData(outputElements, "OUTPUT");
+            
+            const treeWidth = 300;
+            const treeHeight = 500;
+            const leftX = 250;
+            const rightX = width - 250;
+            const topY = 100;
+            
+            // Create hierarchical tree layouts with custom positioning
+            const treeLayout = d3.tree().size([treeWidth, treeHeight]);
+            
+            // Input tree
+            const inputRoot = d3.hierarchy(inputTree);
+            const inputTreeData = treeLayout(inputRoot);
+            
+            // Apply zigzag pattern to input children
+            inputTreeData.descendants().filter(d => d.depth > 0).forEach((d, i) => {
+                d.y = d.y + (i % 2 === 0 ? -30 : 30);
+            });
+            
+            // Output tree
+            const outputRoot = d3.hierarchy(outputTree);
+            const outputTreeData = treeLayout(outputRoot);
+            
+            // Apply zigzag pattern to output children
+            outputTreeData.descendants().filter(d => d.depth > 0).forEach((d, i) => {
+                d.y = d.y + (i % 2 === 0 ? 30 : -30);
+            });
+            
+            // Draw input tree
+            const inputGroup = svg.append("g")
+                .attr("transform", `translate(${leftX - treeWidth/2},${topY})`);
+            
+            // Input links
+            inputGroup.selectAll(".input-link")
+                .data(inputTreeData.links())
+                .enter()
+                .append("path")
+                .attr("class", "input-link link")
+                .attr("d", d3.linkVertical()
+                    .x(d => d.x)
+                    .y(d => d.y))
+                .attr("stroke", "#ffd700")
+                .style("opacity", 0)
+                .transition()
+                .duration(800)
+                .style("opacity", 0.6);
+            
+            // Input nodes
+            const inputNodes = inputGroup.selectAll(".input-node")
+                .data(inputTreeData.descendants())
+                .enter()
+                .append("g")
+                .attr("class", d => `node input-node ${d.depth === 0 ? 'root-node' : ''}`)
+                .attr("transform", d => `translate(${d.x},${d.y})`)
+                .style("opacity", 0);
+            
+            inputNodes.transition()
+                .duration(800)
+                .delay((d, i) => i * 100)
+                .style("opacity", 1);
+            
+            inputNodes.append("circle")
+                .attr("r", d => d.depth === 0 ? 40 : 35)
+                .attr("fill", d => {
+                    if (d.depth === 0) return "#c9a86a";
+                    if (comparison.balanced) return "#00ff00";
+                    if (comparison.extra[d.data.name]) return "#ffaa00";
+                    return "#00ff00";
+                })
+                .attr("stroke", d => {
+                    if (d.depth === 0) return "#ffd700";
+                    if (comparison.balanced) return "#00ff00";
+                    if (comparison.extra[d.data.name]) return "#ffaa00";
+                    return "#00ff00";
+                });
+            
+            inputNodes.append("text")
+                .attr("dy", d => d.depth === 0 ? 5 : -5)
+                .attr("text-anchor", "middle")
+                .attr("fill", "white")
+                .style("font-size", d => d.depth === 0 ? "16px" : "16px")
+                .text(d => d.data.name);
+            
+            inputNodes.filter(d => d.depth !== 0).append("text")
+                .attr("dy", 12)
+                .attr("text-anchor", "middle")
+                .attr("fill", "white")
+                .style("font-size", "12px")
+                .text(d => `×${d.data.value}`);
+            
+            // Draw output tree
+            const outputGroup = svg.append("g")
+                .attr("transform", `translate(${rightX - treeWidth/2},${topY})`);
+            
+            // Output links
+            outputGroup.selectAll(".output-link")
+                .data(outputTreeData.links())
+                .enter()
+                .append("path")
+                .attr("class", "output-link link")
+                .attr("d", d3.linkVertical()
+                    .x(d => d.x)
+                    .y(d => d.y))
+                .attr("stroke", "#ffd700")
+                .style("opacity", 0)
+                .transition()
+                .duration(800)
+                .style("opacity", 0.6);
+            
+            // Output nodes
+            const outputNodes = outputGroup.selectAll(".output-node")
+                .data(outputTreeData.descendants())
+                .enter()
+                .append("g")
+                .attr("class", d => `node output-node ${d.depth === 0 ? 'root-node' : ''}`)
+                .attr("transform", d => `translate(${d.x},${d.y})`)
+                .style("opacity", 0);
+            
+            outputNodes.transition()
+                .duration(800)
+                .delay((d, i) => i * 100)
+                .style("opacity", 1);
+            
+            outputNodes.append("circle")
+                .attr("r", d => d.depth === 0 ? 40 : 35)
+                .attr("fill", d => {
+                    if (d.depth === 0) return "#c9a86a";
+                    if (comparison.balanced) return "#00ff00";
+                    if (comparison.missing[d.data.name]) return "#ff4444";
+                    return "#00ff00";
+                })
+                .attr("stroke", d => {
+                    if (d.depth === 0) return "#ffd700";
+                    if (comparison.balanced) return "#00ff00";
+                    if (comparison.missing[d.data.name]) return "#ff4444";
+                    return "#00ff00";
+                });
+            
+            outputNodes.append("text")
+                .attr("dy", d => d.depth === 0 ? 5 : -5)
+                .attr("text-anchor", "middle")
+                .attr("fill", "white")
+                .style("font-size", d => d.depth === 0 ? "16px" : "16px")
+                .text(d => d.data.name);
+            
+            outputNodes.filter(d => d.depth !== 0).append("text")
+                .attr("dy", 12)
+                .attr("text-anchor", "middle")
+                .attr("fill", "white")
+                .style("font-size", "12px")
+                .text(d => `×${d.data.value}`);
+            
+            // Draw connections between matching elements
+            const linkGroup = svg.append("g").attr("class", "cross-links");
+            
+            inputTreeData.descendants().filter(d => d.depth > 0).forEach(inputNode => {
+                const outputNode = outputTreeData.descendants().find(d => 
+                    d.depth > 0 && d.data.name === inputNode.data.name
+                );
+                
+                if (outputNode) {
+                    const x1 = leftX - treeWidth/2 + inputNode.x;
+                    const y1 = topY + inputNode.y;
+                    const x2 = rightX - treeWidth/2 + outputNode.x;
+                    const y2 = topY + outputNode.y;
+                    
+                    const link = linkGroup.append("path")
+                        .attr("class", "link")
+                        .attr("d", `M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`)
+                        .attr("stroke", comparison.balanced ? "#00ff00" : "#ff8800")
+                        .style("stroke-dasharray", "5,5")
+                        .style("opacity", 0);
+                    
+                    link.transition()
+                        .duration(1000)
+                        .delay(1000)
+                        .style("opacity", 0.4);
+                    
+                    // Particle animation for balanced exchanges
+                    if (comparison.balanced && inputNode.data.value === outputNode.data.value) {
+                        for (let j = 0; j < 3; j++) {
+                            setTimeout(() => {
+                                const particle = svg.append("circle")
+                                    .attr("class", "particle")
+                                    .attr("r", 5)
+                                    .attr("cx", x1)
+                                    .attr("cy", y1);
+                                
+                                particle.transition()
+                                    .duration(2000)
+                                    .ease(d3.easeLinear)
+                                    .attrTween("cx", () => d3.interpolate(x1, x2))
+                                    .attrTween("cy", () => {
+                                        const midY = (y1 + y2) / 2 - 40;
+                                        return t => {
+                                            if (t < 0.5) {
+                                                return y1 + (midY - y1) * (t * 2);
+                                            } else {
+                                                return midY + (y2 - midY) * ((t - 0.5) * 2);
+                                            }
+                                        };
+                                    })
+                                    .style("opacity", 0)
+                                    .remove();
+                            }, 1500 + j * 700);
+                        }
+                    }
+                }
+            });
+        }
+
+        function checkFormula() {
+            const input = document.getElementById("formulaInput").value.trim();
+            
+            if (!input.includes("->")) {
+                alert("Please use format: Input -> Output");
+                return;
+            }
+            
+            const [left, right] = input.split("->").map(s => s.trim());
+            
+            const inputElements = parseWithParentheses(left);
+            const outputElements = parseWithParentheses(right);
+            
+            const comparison = compareFormulas(inputElements, outputElements);
+            
+            const resultSection = document.getElementById("resultSection");
+            resultSection.innerHTML = "";
+            
+            if (comparison.balanced) {
+                resultSection.innerHTML = `
+                    <div class="result-label equivalent">✓ EQUIVALENT EXCHANGE</div>
+                `;
+            } else {
+                let message = "✗ NOT EQUIVALENT<br><small>";
+                if (Object.keys(comparison.missing).length > 0) {
+                    message += "Missing: " + Object.entries(comparison.missing)
+                        .map(([el, count]) => `${el}(${count})`)
+                        .join(", ");
+                }
+                if (Object.keys(comparison.extra).length > 0) {
+                    if (Object.keys(comparison.missing).length > 0) message += " | ";
+                    message += "Extra: " + Object.entries(comparison.extra)
+                        .map(([el, count]) => `${el}(${count})`)
+                        .join(", ");
+                }
+                message += "</small>";
+                
+                resultSection.innerHTML = `
+                    <div class="result-label not-equivalent">${message}</div>
+                `;
+            }
+            
+            const balance = calculateBalance(inputElements, outputElements);
+            const meterFill = document.getElementById("meterFill");
+            meterFill.style.width = balance + "%";
+            meterFill.textContent = Math.round(balance) + "%";
+            
+            visualizeFormula(inputElements, outputElements, comparison);
+        }
+
+        function setExample(formula) {
+            document.getElementById("formulaInput").value = formula;
+            checkFormula();
+        }
+
+        checkFormula();
+    </script>
+</body>
+</html>
