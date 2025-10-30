@@ -6,6 +6,3 @@ Edward Elric must verify if alchemical formulas follow the law of Equivalent Exc
 ### 💻 Language
 CPP (Recursion + HashMap + Parsing)
 
-### ⚙️ How to Run
-```bash
-
